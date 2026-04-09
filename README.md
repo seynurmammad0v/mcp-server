@@ -1,14 +1,14 @@
-# IcePanel MCP Server
+# IcePanel MCP Server (Deprecated)
 
-## ⚠️ Beta Notice
+## ⚠️ Deprecation Notice
 
-IcePanel MCP Server is currently in beta. We appreciate your feedback and patience as we continue to improve the MCP Server.
+We are deprecating this repository, we have moved to a Remote MCP Server.
 
-Please use MCP Servers with caution; only install tools you trust.
+For instructions on how to set that up - please refer to the docs [here](https://docs.icepanel.io/integrations/mcp-server)
 
-## 🚀 Getting Started
+### 🚀 Getting Started
 
-### Prerequisites
+#### Prerequisites
 
 - Node.js (minimum v18+, Latest LTS version recommended)
 - One of the supported MCP Clients:
@@ -16,7 +16,7 @@ Please use MCP Servers with caution; only install tools you trust.
   - Cursor
   - Windsurf
 
-### Installation
+#### Installation
 
 1. **Get your organization's ID**
    - Visit [IcePanel](https://app.icepanel.io/)
@@ -38,13 +38,13 @@ Please use MCP Servers with caution; only install tools you trust.
 3. **Install**
   - Add the configuration to your MCP Client's MCP config file. (See below)
 
-#### Environment Variables
+##### Environment Variables
 
 - `API_KEY`: Your IcePanel API key (required)
 - `ORGANIZATION_ID`: Your IcePanel organization ID (required)
 - `ICEPANEL_API_BASE_URL`: (Optional) Override the API base URL for different environments
 
-#### Configure your MCP Client
+##### Configure your MCP Client
 
 Add this to your MCP Clients' MCP config file:
 
@@ -59,14 +59,14 @@ Add this to your MCP Clients' MCP config file:
 }
 ```
 
-## ✉️ Support
+### ✉️ Support
 
 - Reach out to [Support](mailto:support@icepanel.io) if you experience any issues.
 
-## 📝 License
+### 📝 License
 
 MIT License
 
-## 🙏 Acknowledgments
+### 🙏 Acknowledgments
 
 - Thanks to our beta testers and community members
