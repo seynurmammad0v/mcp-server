@@ -15,7 +15,7 @@
   <h1>IcePanel MCP — token refresh bookmarklet</h1>
   <p>Drag this button to your bookmarks bar. Then, while logged in to <code>app.icepanel.io</code>, click it. It will scan storage for the freshest JWT and POST it to the local refresh server.</p>
 
-  <a class="bm" href="javascript:(function(){var found=[];function add(src,k,v){if(typeof v!=='string')return;var m=v.match(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g);if(!m)return;m.forEach(function(t){try{var p=t.split('.')[1];var pad=p+'='.repeat((4-p.length%4)%4);var d=JSON.parse(atob(pad.replace(/-/g,'+').replace(/_/g,'/')));if(d&&d.exp){found.push({src:src,key:k,token:t,exp:d.exp,iss:d.iss||'',aud:d.aud||''})}}catch(e){}})}for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);add('localStorage',k,localStorage.getItem(k))}for(var i=0;i<sessionStorage.length;i++){var k=sessionStorage.key(i);add('sessionStorage',k,sessionStorage.getItem(k))}if(!found.length){alert('No JWT found in storage on '+location.host);return}found.sort(function(a,b){return b.exp-a.exp});var best=found[0];var msg=found.length+' JWT(s) found. Sending newest from '+best.src+'['+best.key+'] (iss='+best.iss+', exp in '+(best.exp-Math.floor(Date.now()/1000))+'s).';fetch('http://127.0.0.1:1717/token',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token:best.token})}).then(function(r){return r.json()}).then(function(j){alert(msg+'\n\nServer: '+JSON.stringify(j))}).catch(function(e){alert(msg+'\n\nFAILED to reach refresh server: '+e.message+'\n\nIs `npm run refresh-server` running?')}); })();">📌 IcePanel MCP refresh</a>
+  <a class="bm" href="javascript:(function(){if(window.__icepanelMcpRefreshHooked)return;window.__icepanelMcpRefreshHooked=true;var TARGET='http://127.0.0.1:1717/token';var origFetch=window.fetch;var origXhrSetHeader=XMLHttpRequest.prototype.setRequestHeader;var captured=false;function send(token){if(captured)return;captured=true;origFetch.call(window,TARGET,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token:token})}).then(function(r){return r.json()}).then(function(j){alert('Captured + sent token.\n\nServer: '+JSON.stringify(j))}).catch(function(e){alert('Captured token but FAILED to reach refresh server: '+e.message+'\n\nIs `npm run refresh-server` running?')})}function tryAuth(v){if(captured||typeof v!=='string')return;var m=v.match(/^Bearer (eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/);if(m)send(m[1])}function fromHeaders(h){if(!h)return null;try{if(h instanceof Headers)return h.get('authorization');if(Array.isArray(h)){for(var i=0;i<h.length;i++)if(/^authorization$/i.test(h[i][0]))return h[i][1];return null}return h.authorization||h.Authorization||null}catch(e){return null}}window.fetch=function(input,init){var a=fromHeaders(init&&init.headers)||fromHeaders(input&&input.headers);tryAuth(a);return origFetch.apply(this,arguments)};XMLHttpRequest.prototype.setRequestHeader=function(name,value){if(/^authorization$/i.test(name))tryAuth(value);return origXhrSetHeader.apply(this,arguments)};setTimeout(function(){window.fetch=origFetch;XMLHttpRequest.prototype.setRequestHeader=origXhrSetHeader;window.__icepanelMcpRefreshHooked=false;if(!captured)alert('No authed request seen in 30s. Click around the IcePanel UI (open a diagram, switch landscapes) and try again.')},30000);alert('Listening for outgoing IcePanel API calls. Click around the UI in the next 30s. (Open a diagram, switch landscapes, etc.)')})();">📌 IcePanel MCP refresh</a>
 
   <div class="warn">
     <strong>Heads up:</strong> the bookmarklet sends your JWT to <code>http://127.0.0.1:1717</code>. The refresh server only binds to localhost, but anyone with shell access on this machine could read the token file (<code>~/.icepanel/bearer</code>, mode 600). Don't run this on a shared machine without thinking.
@@ -30,35 +30,65 @@
   </ol>
 
   <h2>What it does</h2>
+  <p>IcePanel's SPA holds the bearer JWT in JS memory only — it isn't in <code>localStorage</code>, <code>sessionStorage</code>, cookies, or IndexedDB. So the bookmarklet hooks <code>window.fetch</code> and <code>XMLHttpRequest.prototype.setRequestHeader</code>, captures the <code>Authorization: Bearer …</code> from the next API call the SPA makes, POSTs it to the local refresh server, then unhooks. Click around the UI to trigger an outgoing call within the 30-second window.</p>
   <pre>(function () {
-  var found = [];
-  function add(src, k, v) {
-    if (typeof v !== 'string') return;
-    var m = v.match(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g);
-    if (!m) return;
-    m.forEach(function (t) {
-      try {
-        var p = t.split('.')[1];
-        var pad = p + '='.repeat((4 - p.length % 4) % 4);
-        var d = JSON.parse(atob(pad.replace(/-/g, '+').replace(/_/g, '/')));
-        if (d &amp;&amp; d.exp) found.push({ src: src, key: k, token: t, exp: d.exp, iss: d.iss || '', aud: d.aud || '' });
-      } catch (e) {}
-    });
+  if (window.__icepanelMcpRefreshHooked) return;
+  window.__icepanelMcpRefreshHooked = true;
+  var TARGET = 'http://127.0.0.1:1717/token';
+  var origFetch = window.fetch;
+  var origXhrSetHeader = XMLHttpRequest.prototype.setRequestHeader;
+  var captured = false;
+
+  function send(token) {
+    if (captured) return;
+    captured = true;
+    origFetch.call(window, TARGET, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ token: token })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (j) { alert('Captured + sent token.\n\nServer: ' + JSON.stringify(j)); })
+    .catch(function (e) { alert('Captured token but FAILED to reach refresh server: ' + e.message); });
   }
-  for (var i = 0; i &lt; localStorage.length; i++) { var k = localStorage.key(i); add('localStorage', k, localStorage.getItem(k)); }
-  for (var i = 0; i &lt; sessionStorage.length; i++) { var k = sessionStorage.key(i); add('sessionStorage', k, sessionStorage.getItem(k)); }
-  if (!found.length) { alert('No JWT found in storage on ' + location.host); return; }
-  found.sort(function (a, b) { return b.exp - a.exp; });
-  var best = found[0];
-  var msg = found.length + ' JWT(s) found. Sending newest from ' + best.src + '[' + best.key + '] (iss=' + best.iss + ', exp in ' + (best.exp - Math.floor(Date.now()/1000)) + 's).';
-  fetch('http://127.0.0.1:1717/token', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ token: best.token })
-  })
-  .then(function (r) { return r.json(); })
-  .then(function (j) { alert(msg + '\n\nServer: ' + JSON.stringify(j)); })
-  .catch(function (e) { alert(msg + '\n\nFAILED to reach refresh server: ' + e.message + '\n\nIs `npm run refresh-server` running?'); });
+
+  function tryAuth(v) {
+    if (captured || typeof v !== 'string') return;
+    var m = v.match(/^Bearer (eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/);
+    if (m) send(m[1]);
+  }
+
+  function fromHeaders(h) {
+    if (!h) return null;
+    try {
+      if (h instanceof Headers) return h.get('authorization');
+      if (Array.isArray(h)) {
+        for (var i = 0; i &lt; h.length; i++) if (/^authorization$/i.test(h[i][0])) return h[i][1];
+        return null;
+      }
+      return h.authorization || h.Authorization || null;
+    } catch (e) { return null; }
+  }
+
+  window.fetch = function (input, init) {
+    var a = fromHeaders(init &amp;&amp; init.headers) || fromHeaders(input &amp;&amp; input.headers);
+    tryAuth(a);
+    return origFetch.apply(this, arguments);
+  };
+
+  XMLHttpRequest.prototype.setRequestHeader = function (name, value) {
+    if (/^authorization$/i.test(name)) tryAuth(value);
+    return origXhrSetHeader.apply(this, arguments);
+  };
+
+  setTimeout(function () {
+    window.fetch = origFetch;
+    XMLHttpRequest.prototype.setRequestHeader = origXhrSetHeader;
+    window.__icepanelMcpRefreshHooked = false;
+    if (!captured) alert('No authed request seen in 30s. Click around the IcePanel UI and try again.');
+  }, 30000);
+
+  alert('Listening for outgoing IcePanel API calls. Click around the UI in the next 30s.');
 })();</pre>
 
 </body>
