@@ -299,6 +299,153 @@ server.tool(
 
 )
 
+// ---------------------------------------------------------------------------
+// Write tools (fork additions): diagrams, flows, domains
+// ---------------------------------------------------------------------------
+
+const diagramType = z.enum(["app-diagram", "component-diagram", "context-diagram"]);
+
+server.tool(
+  "createDiagram",
+  `
+  Create a new diagram in an IcePanel landscape version.
+  IcePanel diagrams visualize a level of the C4 model:
+    - 'context-diagram'  (C1) — system context
+    - 'app-diagram'      (C2) — apps/containers within a system
+    - 'component-diagram'(C3) — components within an app
+  'modelId' must be the model object the diagram describes (system → context, app → component, etc.).
+  'index' is the sort order; pass a float like 1, 1.5, 2 to control placement.
+  Returns the created diagram object including its id.
+  `,
+  {
+    landscapeId: z.string().length(20),
+    versionId: z.string().default("latest"),
+    name: z.string(),
+    type: diagramType,
+    modelId: z.string().length(20),
+    index: z.number().default(1),
+    description: z.string().optional(),
+    groupId: z.string().nullable().optional(),
+    parentId: z.string().nullable().optional(),
+    pinned: z.boolean().optional(),
+    handleId: z.string().optional(),
+  },
+  async ({ landscapeId, versionId, ...body }) => {
+    try {
+      const result = await icepanel.createDiagram(landscapeId, versionId, body);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    } catch (error: any) {
+      return { content: [{ type: "text", text: `Error: ${error.message}` }] };
+    }
+  },
+);
+
+server.tool(
+  "deleteDiagram",
+  "Delete a diagram from an IcePanel landscape version.",
+  {
+    landscapeId: z.string().length(20),
+    versionId: z.string().default("latest"),
+    diagramId: z.string().length(20),
+  },
+  async ({ landscapeId, versionId, diagramId }) => {
+    try {
+      await icepanel.deleteDiagram(landscapeId, versionId, diagramId);
+      return { content: [{ type: "text", text: `Deleted diagram ${diagramId}` }] };
+    } catch (error: any) {
+      return { content: [{ type: "text", text: `Error: ${error.message}` }] };
+    }
+  },
+);
+
+server.tool(
+  "createFlow",
+  `
+  Create a new flow in an IcePanel landscape version.
+  Flows are step-by-step narratives layered onto an existing diagram, so 'diagramId' is required.
+  Returns the created flow object including its id.
+  `,
+  {
+    landscapeId: z.string().length(20),
+    versionId: z.string().default("latest"),
+    name: z.string(),
+    diagramId: z.string().length(20),
+    index: z.number().optional(),
+    showAllSteps: z.boolean().optional(),
+    showConnectionNames: z.boolean().optional(),
+    pinned: z.boolean().optional(),
+    handleId: z.string().optional(),
+  },
+  async ({ landscapeId, versionId, ...body }) => {
+    try {
+      const result = await icepanel.createFlow(landscapeId, versionId, body);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    } catch (error: any) {
+      return { content: [{ type: "text", text: `Error: ${error.message}` }] };
+    }
+  },
+);
+
+server.tool(
+  "deleteFlow",
+  "Delete a flow from an IcePanel landscape version.",
+  {
+    landscapeId: z.string().length(20),
+    versionId: z.string().default("latest"),
+    flowId: z.string().length(20),
+  },
+  async ({ landscapeId, versionId, flowId }) => {
+    try {
+      await icepanel.deleteFlow(landscapeId, versionId, flowId);
+      return { content: [{ type: "text", text: `Deleted flow ${flowId}` }] };
+    } catch (error: any) {
+      return { content: [{ type: "text", text: `Error: ${error.message}` }] };
+    }
+  },
+);
+
+server.tool(
+  "createDomain",
+  `
+  Create a new domain in an IcePanel landscape version.
+  Domains are top-level logical groupings that can parent systems, actors, and areas.
+  Returns the created domain object including its id.
+  `,
+  {
+    landscapeId: z.string().length(20),
+    versionId: z.string().default("latest"),
+    name: z.string(),
+    index: z.number().optional(),
+    handleId: z.string().optional(),
+  },
+  async ({ landscapeId, versionId, ...body }) => {
+    try {
+      const result = await icepanel.createDomain(landscapeId, versionId, body);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    } catch (error: any) {
+      return { content: [{ type: "text", text: `Error: ${error.message}` }] };
+    }
+  },
+);
+
+server.tool(
+  "deleteDomain",
+  "Delete a domain from an IcePanel landscape version.",
+  {
+    landscapeId: z.string().length(20),
+    versionId: z.string().default("latest"),
+    domainId: z.string().length(20),
+  },
+  async ({ landscapeId, versionId, domainId }) => {
+    try {
+      await icepanel.deleteDomain(landscapeId, versionId, domainId);
+      return { content: [{ type: "text", text: `Deleted domain ${domainId}` }] };
+    } catch (error: any) {
+      return { content: [{ type: "text", text: `Error: ${error.message}` }] };
+    }
+  },
+);
+
 // Start receiving messages on stdin and sending messages on stdout
 const transport = new StdioServerTransport();
 await server.connect(transport);

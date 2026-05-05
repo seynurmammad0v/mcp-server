@@ -1,10 +1,20 @@
-# IcePanel MCP Server (Deprecated)
+# IcePanel MCP Server (fork)
 
-## ⚠️ Deprecation Notice
+This is a fork of [`IcePanel/mcp-server`](https://github.com/IcePanel/mcp-server) that adds **write tools for diagrams, flows, and domains**, on top of the existing read-only tools. The upstream local server is deprecated in favor of a hosted remote MCP at `https://mcp.icepanel.io/mcp`, but the remote MCP does not currently expose create/delete for diagrams/flows/domains — this fork does.
 
-We are deprecating this repository, we have moved to a Remote MCP Server.
+## What's new in this fork
 
-For instructions on how to set that up - please refer to the docs [here](https://docs.icepanel.io/integrations/mcp-server)
+- `createDiagram` / `deleteDiagram`
+- `createFlow` / `deleteFlow`
+- `createDomain` / `deleteDomain`
+
+All call IcePanel's REST API directly (`POST`/`DELETE` under `/landscapes/:id/versions/:vid/{diagrams,flows,domains}`).
+
+## Use case
+
+Automatically generate IcePanel diagrams from architecture decision records (ADRs): an ADR can include the model objects it touches, and the model can call `createDiagram` + diagram content endpoints to materialize a C4 view from those refs.
+
+---
 
 ### 🚀 Getting Started
 

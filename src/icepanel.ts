@@ -32,10 +32,13 @@ async function apiRequest(path: string, options: RequestInit = {}) {
   });
 
   if (!response.ok) {
-    throw new Error(`IcePanel API error: ${response.status} ${response.statusText}`);
+    const errBody = await response.text().catch(() => "");
+    throw new Error(`IcePanel API error: ${response.status} ${response.statusText}${errBody ? ` — ${errBody}` : ""}`);
   }
 
-  return response.json();
+  if (response.status === 204) return {};
+  const text = await response.text();
+  return text ? JSON.parse(text) : {};
 }
 
 /**
@@ -308,4 +311,105 @@ export async function getModelConnections(
  */
 export async function getConnection(landscapeId: string, versionId: string, connectionId: string) {
   return apiRequest(`/landscapes/${landscapeId}/versions/${versionId}/model/connections/${connectionId}`);
+}
+
+// ---------------------------------------------------------------------------
+// Write endpoints (fork additions: diagrams, flows, domains)
+// ---------------------------------------------------------------------------
+
+export type CreateDiagramBody = {
+  index: number;
+  modelId: string;
+  name: string;
+  type: "app-diagram" | "component-diagram" | "context-diagram";
+  description?: string;
+  groupId?: string | null;
+  parentId?: string | null;
+  labels?: Record<string, string>;
+  pinned?: boolean;
+  handleId?: string;
+};
+
+export async function createDiagram(
+  landscapeId: string,
+  versionId: string,
+  body: CreateDiagramBody,
+) {
+  return apiRequest(
+    `/landscapes/${landscapeId}/versions/${versionId}/diagrams`,
+    { method: "POST", body: JSON.stringify(body) },
+  );
+}
+
+export async function deleteDiagram(
+  landscapeId: string,
+  versionId: string,
+  diagramId: string,
+) {
+  return apiRequest(
+    `/landscapes/${landscapeId}/versions/${versionId}/diagrams/${diagramId}`,
+    { method: "DELETE" },
+  );
+}
+
+export type CreateFlowBody = {
+  name: string;
+  diagramId: string;
+  index?: number;
+  labels?: Record<string, string>;
+  showAllSteps?: boolean;
+  showConnectionNames?: boolean;
+  pinned?: boolean;
+  handleId?: string;
+};
+
+export async function createFlow(
+  landscapeId: string,
+  versionId: string,
+  body: CreateFlowBody,
+) {
+  return apiRequest(
+    `/landscapes/${landscapeId}/versions/${versionId}/flows`,
+    { method: "POST", body: JSON.stringify(body) },
+  );
+}
+
+export async function deleteFlow(
+  landscapeId: string,
+  versionId: string,
+  flowId: string,
+) {
+  return apiRequest(
+    `/landscapes/${landscapeId}/versions/${versionId}/flows/${flowId}`,
+    { method: "DELETE" },
+  );
+}
+
+export type CreateDomainBody = {
+  name: string;
+  index?: number;
+  labels?: Record<string, string>;
+  handleId?: string;
+};
+
+export async function createDomain(
+  landscapeId: string,
+  versionId: string,
+  body: CreateDomainBody,
+) {
+  return apiRequest(
+    `/landscapes/${landscapeId}/versions/${versionId}/domains`,
+    { method: "POST", body: JSON.stringify(body) },
+  );
+}
+
+export async function deleteDomain(
+  landscapeId: string,
+  versionId: string,
+  domainId: string,
+) {
+  return apiRequest(
+    `/landscapes/${landscapeId}/versions/${versionId}/domains/${domainId}`,
+    { method: "DELETE" },
+  );
 }
