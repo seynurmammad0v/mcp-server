@@ -8,10 +8,26 @@ import type { ModelObjectsResponse, ModelObjectResponse, CatalogTechnologyRespon
 // Use environment variable if set, otherwise default to production URL
 const API_BASE_URL = process.env.ICEPANEL_API_BASE_URL || "https://api.icepanel.io/v1";
 
-// Get the API key from environment variables
-const API_KEY = process.env.API_KEY;
+// Auth: prefer a short-lived Bearer JWT (sourced from the IcePanel SPA) if available,
+// otherwise fall back to a long-lived API key.
+//   ICEPANEL_BEARER_TOKEN_FILE — path to a file whose contents are a JWT (re-read each request)
+//   ICEPANEL_BEARER_TOKEN      — JWT directly in env
+//   API_KEY                    — IcePanel API key (existing upstream behaviour)
+import { readFileSync } from "node:fs";
 
-// Note: We don't check for API_KEY here as main.ts handles this
+const API_KEY = process.env.API_KEY;
+const BEARER_TOKEN_INLINE = process.env.ICEPANEL_BEARER_TOKEN;
+const BEARER_TOKEN_FILE = process.env.ICEPANEL_BEARER_TOKEN_FILE;
+
+function authHeader(): string {
+  if (BEARER_TOKEN_FILE) {
+    const t = readFileSync(BEARER_TOKEN_FILE, "utf8").trim();
+    if (t) return `Bearer ${t}`;
+  }
+  if (BEARER_TOKEN_INLINE) return `Bearer ${BEARER_TOKEN_INLINE}`;
+  if (API_KEY) return `ApiKey ${API_KEY}`;
+  throw new Error("No IcePanel auth configured: set ICEPANEL_BEARER_TOKEN_FILE, ICEPANEL_BEARER_TOKEN, or API_KEY");
+}
 
 /**
  * Make an authenticated request to the IcePanel API
@@ -22,7 +38,7 @@ async function apiRequest(path: string, options: RequestInit = {}) {
   const headers = {
     "Accept": "application/json",
     "Content-Type": "application/json",
-    "Authorization": `ApiKey ${API_KEY}`,
+    "Authorization": authHeader(),
     ...options.headers,
   };
 
