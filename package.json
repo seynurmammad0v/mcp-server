@@ -5,17 +5,20 @@
   "type": "module",
   "main": "dist/main.js",
   "bin": {
-    "icepanel-mcp-server": "./bin/icepanel-mcp-server.js"
+    "icepanel-mcp-server": "./bin/icepanel-mcp-server.js",
+    "icepanel-mcp-refresh-server": "./bin/refresh-server.js"
   },
   "scripts": {
     "build": "tsc",
     "dev": "tsx watch --env-file=.env src/main.ts",
+    "refresh-server": "node ./bin/refresh-server.js",
     "prepublishOnly": "npm run build",
     "publish": "npm publish --access public"
   },
   "files": [
     "dist",
-    "bin"
+    "bin",
+    "bookmarklet"
   ],
   "keywords": [
     "icepanel",
